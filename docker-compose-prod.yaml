@@ -35,7 +35,7 @@ services:
       - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.middlewares=auth"
-      # text:xxx
+      # test:xxx
       - "traefik.http.middlewares.auth.basicauth.users=test:{SHA}tg0SG0OKOAw0PV7DwgN1ZLgv/vM="
 
   whoami:
@@ -64,7 +64,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.whoami_auth.rule=Host(`whoamiauth.docker.localhost`)"
       - "traefik.http.routers.whoami_auth.middlewares=auth"
-      # text:xxx
+      # test:xxx
       - "traefik.http.middlewares.auth.basicauth.users=test:{SHA}tg0SG0OKOAw0PV7DwgN1ZLgv/vM="
 
   nginx:
