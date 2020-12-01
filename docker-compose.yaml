@@ -1,0 +1,66 @@
+version: "3.7"
+
+services:
+  reverse-proxy:
+    image: traefik:v2.2
+    command:
+      - --api.insecure=true
+      - --providers.docker
+      - "--providers.docker.exposedByDefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.ssl.acme.httpchallenge=true"
+      - "--certificatesresolvers.ssl.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.ssl.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.ssl.acme.email=fulano@teste.com"
+      - "--certificatesresolvers.ssl.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./letsencrypt:/letsencrypt
+      - ./certs:/etc/certs
+    labels:
+      # Global redirect to https
+      - "traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.redirs.entrypoints=web"
+      - "traefik.http.routers.redirs.middlewares=redirect-to-https"
+      # Middleware redirect
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    # Protect Dashboard with BasicAuth
+    #   - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+    #   - "traefik.http.routers.dashboard.service=api@internal"
+    #   - "traefik.http.routers.dashboard.middlewares=auth"
+    #   # text:xxx
+    #   - "traefik.http.middlewares.auth.basicauth.users=test:{SHA}tg0SG0OKOAw0PV7DwgN1ZLgv/vM="
+
+  whoami:
+    image: containous/whoami
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=(Host(`whoami.docker.localhost`) || Host(`teste.docker.localhost`))"
+      - "traefik.http.routers.whoami.tls=true"
+      - "traefik.http.routers.whoami.tls.certresolver=ssl"
+
+  whoami_port:
+    image: containous/whoami
+    command:
+      - --port=8082
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami_port.rule=Host(`whoamiport.docker.localhost`)"
+      - "traefik.http.services.whoami_port.loadbalancer.server.port=8082"
+      - "traefik.http.services.whoami_port.loadbalancer.healthcheck.path=/"
+      - "traefik.http.services.whoami_port.loadbalancer.healthcheck.port=8082"
+      - "traefik.http.services.whoami_port.loadbalancer.healthcheck.interval=30s"
+
+  whoami_auth:
+    image: containous/whoami:v1.3.0
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami_auth.rule=Host(`whoamiauth.docker.localhost`)"
+      - "traefik.http.routers.whoami_auth.middlewares=auth"
+      # text:xxx
+      - "traefik.http.middlewares.auth.basicauth.users=test:{SHA}tg0SG0OKOAw0PV7DwgN1ZLgv/vM="
