@@ -4,7 +4,8 @@ services:
   reverse-proxy:
     image: traefik:v2.2
     command:
-      - --api.insecure=true
+      # - --api.insecure=true
+      - --api.dashboard=true
       - --providers.docker
       - "--providers.docker.exposedByDefault=false"
       - "--entrypoints.web.address=:80"
@@ -29,6 +30,13 @@ services:
       - "traefik.http.routers.redirs.middlewares=redirect-to-https"
       # Middleware redirect
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      # Protect Dashboard with BasicAuth
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      # text:xxx
+      - "traefik.http.middlewares.auth.basicauth.users=test:{SHA}tg0SG0OKOAw0PV7DwgN1ZLgv/vM="
 
   whoami:
     image: containous/whoami
@@ -58,3 +66,29 @@ services:
       - "traefik.http.routers.whoami_auth.middlewares=auth"
       # text:xxx
       - "traefik.http.middlewares.auth.basicauth.users=test:{SHA}tg0SG0OKOAw0PV7DwgN1ZLgv/vM="
+
+  nginx:
+    build: ./docker/nginx
+    container_name: nginx
+    restart: always
+    volumes:
+      - ./public:/var/www/public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx.rule=Host(`nginx.docker.localhost`)"
+      - "traefik.http.routers.nginx.tls=true"
+      - "traefik.http.routers.nginx.tls.certresolver=ssl"
+
+  app:
+    build: ./docker/app
+    container_name: app
+    ports:
+      - "3000:3000"
+      - "35729:35729"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - .:/var/www
+      - ./docker/app/custom.ini:/usr/local/etc/php/conf.d/custom.ini
+      - "/etc/timezone:/etc/timezone:ro"
+      - "/etc/localtime:/etc/localtime:ro"
